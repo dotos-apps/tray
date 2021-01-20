@@ -1,3 +1,3 @@
-# <app name>
+# Tray
 
-<short description>
+A standalone tray application

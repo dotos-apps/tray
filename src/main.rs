@@ -1,15 +1,14 @@
 /**
-    dotOS internal app template. Fill out the following lines and delete this one. Add this comment to every line
+    tray (c) dotHQ 2021
+    A standalone tray application
 
-    <appname> (c) dotHQ 2021
-    <app description>
-
-    <file description>
+    The entry point for the tray application
 
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
+
 extern crate gtk;
 use gtk::{prelude::*, Builder};
 
