@@ -7,6 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+gio = "0.9"
+const_format = "0.2.13"
+dbus = "0.9.1"
+dbus-crossroads = "0.3.0"
 
 [dependencies.gtk]
 version = "0.9"
