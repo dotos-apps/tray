@@ -10,10 +10,15 @@
 */
 // extern crate gio;
 // extern crate gtk;
-use std::error::Error;
+use std::{
+    error::Error,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-use const_format::concatcp;
-use dbus::blocking::Connection;
+use dbus::blocking::{Connection, Proxy};
 use dbus_crossroads::Crossroads;
 // use gio::{
 //     bus_own_name, bus_watch_name, BusNameOwnerFlags, BusNameWatcherFlags, BusType, DBusConnection,
@@ -24,40 +29,7 @@ use dbus_crossroads::Crossroads;
 // Import glade file to a constant
 // const LAYOUT: &str = include_str!("layout.glade");
 
-// DBus channels
-const PREFIX: &str = "org.kde";
-const WATCHER_BUS_NAME: &str = concatcp!(PREFIX, ".StatusNotifierWatcher");
-
-#[derive(Clone)]
-struct StatusNotifierItem {
-    service: String,
-    sender: String,
-}
-
-impl StatusNotifierItem {
-    pub fn to_register_string(&self) -> String {
-        format!("{}{}", self.sender, self.service)
-    }
-}
-
-struct StatusNotifierWatcher {
-    pub services: Vec<StatusNotifierItem>,
-}
-
-impl StatusNotifierWatcher {
-    fn new() -> Self {
-        StatusNotifierWatcher {
-            services: Vec::new(),
-        }
-    }
-
-    pub fn services_to_register_string(&self) -> Vec<String> {
-        (&self.services)
-            .into_iter()
-            .map(|sni| sni.to_register_string())
-            .collect()
-    }
-}
+mod status_notifier_watcher;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // gtk::init().expect("Failed to initialize GTK");
@@ -72,82 +44,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     // // Show window to users
     // window.show_all();
 
-    let connection = Connection::new_session()?;
+    // Variable to lock until has initied
+    let init = Arc::new(Mutex::new(false));
 
-    // Request the dbus name that is required for AppIndicators
-    connection.request_name("org.kde.StatusNotifierWatcher", false, true, false)?;
+    // Spawn StatusNotifierWatcher (runs forever)
+    let watcher_init = init.clone();
+    let status_watcher =
+        thread::spawn(move || status_notifier_watcher::run(&watcher_init).unwrap());
 
-    // Create a crossroads
-    let mut cr = Crossroads::new();
+    thread::sleep(Duration::new(0, 5));
 
-    let status_notifier_watcher = cr.register("org.kde.StatusNotifierWatcher", |b| {
-        // Methods
-        // -------
-        // Register status notifier host
-        b.method(
-            "RegisterStatusNotifierHost",
-            ("service",),
-            (),
-            |_, _, (service,): (String,)| {
-                println!("RegisterStatusNotifierHost service={}", service);
-                Ok(())
-            },
-        );
+    init.lock().unwrap();
 
-        // Register status notifier item
-        b.method(
-            "RegisterStatusNotifierItem",
-            ("service",),
-            (),
-            |context, data: &mut StatusNotifierWatcher, (service,): (String,)| {
-                // Log register information to the console
-                println!("RegisterStatusNotifierItem service={}", service);
+    println!("StatusNotifierWatcher started");
 
-                // Add the service to the data store
-                data.services.push(StatusNotifierItem {
-                    service: service.clone(),
-                    sender: context.message().sender().unwrap().to_string(),
-                });
-
-                // Create and send the StatusNotifierItemRegistered signal
-                let signal_msg = context.make_signal("StatusNotifierItemRegistered", ("/",));
-                context.push_msg(signal_msg);
-
-                // Return
-                Ok(())
-            },
-        );
-
-        // Signals
-        // -------
-        // On host register
-        b.signal::<(), &'static str>("StatusNotifierHostRegistered", ());
-        // On host unregister
-        b.signal::<(), &'static str>("StatusNotifierHostUnregistered", ());
-        // Status notifier item registered
-        b.signal::<(&'static str,), &'static str>("StatusNotifierItemRegistered", ("String",));
-        // Status notifier item unregistered
-        b.signal::<(&'static str,), &'static str>("StatusNotifierItemUnregistered", ("String",));
-
-        // Properties
-        // ----------
-        // Note: You use `get` and `set` for setting and getting the values
-        b.property::<Vec<String>, &str>("RegisteredStatusNotifierItems")
-            .get(|_, data| Ok(data.services_to_register_string()));
-        b.property::<bool, &str>("IsStatusNotifierHostRegistered")
-            .get(|_, _| Ok(true));
-        b.property::<u8, &str>("ProtocolVersion").get(|_, _| Ok(0));
-    });
-
-    // Insert the functionality into our watcher
-    cr.insert(
-        "/StatusNotifierWatcher",
-        &[status_notifier_watcher],
-        StatusNotifierWatcher::new(),
-    );
-
-    // Add to the connection
-    cr.serve(&connection)?;
+    status_watcher.join().unwrap();
 
     // gtk::main();
 
