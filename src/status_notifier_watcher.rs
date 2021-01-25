@@ -1,6 +1,18 @@
+/**
+    tray (c) dotHQ 2021
+    A standalone tray application
+
+    The StatusNotifierWatcher implementation. This watches for additions and removals
+    from the dbus and handles them. A StatusNotifierHost will then gather information
+    about each and display it.
+
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
 use std::{error::Error, sync::Mutex};
 
-use dbus::blocking::{Connection, Proxy};
+use dbus::blocking::Connection;
 use dbus_crossroads::Crossroads;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
