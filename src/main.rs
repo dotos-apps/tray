@@ -25,8 +25,8 @@ use dbus::blocking::Connection;
 // const LAYOUT: &str = include_str!("tray.glade");
 
 // mod interface;
+mod interfaces;
 mod status_notifier_host;
-mod status_notifier_item;
 mod status_notifier_watcher;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -50,10 +50,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let status_watcher =
         thread::spawn(move || status_notifier_watcher::run(&watcher_init).unwrap());
 
-    thread::sleep(Duration::from_millis(100));
-
     // Wait until the status watcher has been created
     let _ = init.lock().unwrap();
+
+    // Wait a bit longer for stuff to register
+    thread::sleep(Duration::from_millis(100));
 
     // Create a new connection that is going to be used for the host
     let host_connection = Connection::new_session()?;

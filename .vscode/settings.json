@@ -11,7 +11,7 @@
     },
     {
       "tag": "UNIMPLEMENTED",
-      "color": "#FF2D00",
+      "color": "#EE2D2D",
       "strikethrough": false,
       "underline": false,
       "backgroundColor": "transparent",

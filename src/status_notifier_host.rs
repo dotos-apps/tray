@@ -1,16 +1,22 @@
 use std::{error::Error, fmt, time::Duration};
 
 use dbus::{
-    arg::{self, AppendAll, Get, ReadAll, RefArg},
+    arg::{AppendAll, Get, ReadAll, RefArg},
     blocking::{stdintf::org_freedesktop_dbus::Properties, Connection, MakeSignal, Proxy},
-    channel::{MatchingReceiver, Token},
+    channel::Token,
     message::SignalArgs,
     Message,
 };
 
-use crate::status_notifier_item::{
-    OrgKdeStatusNotifierItemNewAttentionIcon, OrgKdeStatusNotifierItemNewIcon,
-    OrgKdeStatusNotifierItemNewStatus, OrgKdeStatusNotifierItemNewTitle,
+use crate::interfaces::{
+    status_notifier_item::{
+        OrgKdeStatusNotifierItemNewAttentionIcon, OrgKdeStatusNotifierItemNewIcon,
+        OrgKdeStatusNotifierItemNewStatus, OrgKdeStatusNotifierItemNewTitle,
+    },
+    status_notifier_watcher::{
+        OrgKdeStatusNotifierWatcherStatusNotifierItemRegistered,
+        OrgKdeStatusNotifierWatcherStatusNotifierItemUnregistered,
+    },
 };
 
 const TIMEOUT: Duration = Duration::from_millis(50);
@@ -53,6 +59,37 @@ impl<'conn> StatusNotifierHost<'conn> {
         let items = self.registered_status_notifier_items()?;
         Ok(StatusNotifierItem::new(items[item].clone(), self.conn)?)
     }
+
+    // UNIMPLEMENTED: Method RegusterStatusNotifierHost
+    // UNIMPLEMENTED: Method RegusterStatusNotifierItem
+
+    pub fn signal<S: ReadAll + SignalArgs, F: 'static + SignalFunction<S>>(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        Ok(self.watcher.match_signal(f)?)
+    }
+
+    // UNIMPLEMENTED: Signal StatusNotifierHostRegistered
+    // UNIMPLEMENTED: Signal StatusNotifierHostUnregistered
+
+    pub fn status_notifier_item_registered<
+        F: 'static + SignalFunction<OrgKdeStatusNotifierWatcherStatusNotifierItemRegistered>,
+    >(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        self.signal(f)
+    }
+
+    pub fn status_notifier_item_unregistered<
+        F: 'static + SignalFunction<OrgKdeStatusNotifierWatcherStatusNotifierItemUnregistered>,
+    >(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        self.signal(f)
+    }
 }
 
 pub trait SignalFunction<S: ReadAll + SignalArgs>:
@@ -60,6 +97,9 @@ pub trait SignalFunction<S: ReadAll + SignalArgs>:
 {
 }
 
+/**
+ * An alias to a status notifier item, for pulling data, calling methods and registering signals in an ergonomic way
+ */
 #[derive(Clone)]
 pub struct StatusNotifierItem<'conn> {
     item: Proxy<'conn, &'conn Connection>,
