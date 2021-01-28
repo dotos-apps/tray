@@ -1,7 +1,7 @@
-use std::{error::Error, time::Duration};
+use std::{error::Error, fmt, time::Duration};
 
 use dbus::{
-    arg,
+    arg::{self, AppendAll, Get, ReadAll, RefArg},
     blocking::{stdintf::org_freedesktop_dbus::Properties, Connection, Proxy},
 };
 
@@ -43,7 +43,7 @@ impl<'conn> StatusNotifierHost<'conn> {
 
     pub fn get_item(&self, item: usize) -> Result<StatusNotifierItem, Box<dyn Error>> {
         let items = self.registered_status_notifier_items()?;
-        Ok(StatusNotifierItem::new(items[item], self.conn)?)
+        Ok(StatusNotifierItem::new(items[item].clone(), self.conn)?)
     }
 }
 
@@ -55,17 +55,104 @@ pub struct StatusNotifierItem<'conn> {
 
 impl<'conn> StatusNotifierItem<'conn> {
     pub fn new(name: String, connection: &'conn Connection) -> Result<Self, Box<dyn Error>> {
-        let path = name.split(':').collect::<Vec<&str>>()[1];
+        let mut name = name.split('/');
+        let id = name.next().unwrap().to_string();
+        let path = name.collect::<Vec<&str>>();
+        let path = format!("/{}", path.join("/"));
 
-        Ok(StatusNotifierItem {
-            item: connection.with_proxy("org.kde.StatusNotifierItem", path, TIMEOUT),
-            menu: None,
-        })
+        let item = connection.with_proxy(id, path, TIMEOUT);
+
+        Ok(StatusNotifierItem { item, menu: None })
+    }
+
+    pub fn get<R0: for<'b> Get<'b> + 'static>(
+        &self,
+        property_name: &str,
+    ) -> Result<R0, Box<dyn Error>> {
+        Ok(self.item.get("org.kde.StatusNotifierItem", property_name)?)
+    }
+
+    pub fn get_category(&self) -> Result<String, Box<dyn Error>> {
+        self.get("Category")
+    }
+
+    pub fn get_id(&self) -> Result<String, Box<dyn Error>> {
+        self.get("Id")
+    }
+
+    pub fn get_title(&self) -> Result<String, Box<dyn Error>> {
+        self.get("Title")
+    }
+
+    pub fn get_status(&self) -> Result<String, Box<dyn Error>> {
+        self.get("Status")
+    }
+
+    pub fn get_window_id(&self) -> Result<u32, Box<dyn Error>> {
+        self.get("WindowId")
+    }
+
+    pub fn get_icon_name(&self) -> Result<String, Box<dyn Error>> {
+        self.get("IconName")
+    }
+
+    // UNIMPLEMENTED: Gettter for IconPixmap
+
+    pub fn get_overlay_icon_name(&self) -> Result<String, Box<dyn Error>> {
+        self.get("OverlayIconName")
+    }
+
+    // UNIMPLEMENTED: Getter for OverlayIconPixmap
+
+    pub fn get_attention_icon_name(&self) -> Result<String, Box<dyn Error>> {
+        self.get("AttentionIconName")
+    }
+
+    // UNIMPLEMENTED: Getter for AttentionIconPixmap
+
+    pub fn get_attention_movie_name(&self) -> Result<String, Box<dyn Error>> {
+        self.get("AttentionMovieName")
+    }
+
+    // UNIMPLEMENTED: Getter for Tooltip
+
+    pub fn get_is_menu(&self) -> Result<bool, Box<dyn Error>> {
+        self.get("IsMenu")
+    }
+
+    pub fn get_menu(&self) -> Result<Box<dyn RefArg>, Box<dyn Error>> {
+        self.get("Menu")
+    }
+
+    pub fn call<A: AppendAll, R: ReadAll>(
+        &self,
+        method_name: &str,
+        args: A,
+    ) -> Result<R, Box<dyn Error>> {
+        Ok(self
+            .item
+            .method_call("org.kde.StatusNotifierItem", method_name, args)?)
+    }
+
+    pub fn context_menu(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
+        self.call("ContextMenu", (x, y))?;
+        Ok(())
     }
 }
 
-impl fmt::Debug for StatusNotifierItem<'conn> {
+impl<'conn> fmt::Debug for StatusNotifierItem<'conn> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "StatusNotifierItem { menu: {:?} }", self.menu)
+        let menu = match &self.menu {
+            Some(menu) => format!("{} {}", menu.destination, menu.path),
+            None => String::from("None"),
+        };
+
+        let item = format!("{} {}", self.item.destination, self.item.path);
+
+        write!(
+            fmt,
+            "StatusNotifierItem {{ item: {}, menu: {} }}",
+            item, menu
+        )
     }
 }
