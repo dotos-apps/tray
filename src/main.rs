@@ -26,6 +26,7 @@ use dbus::blocking::Connection;
 
 // mod interface;
 mod status_notifier_host;
+mod status_notifier_item;
 mod status_notifier_watcher;
 
 fn main() -> Result<(), Box<dyn Error>> {

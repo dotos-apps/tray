@@ -2,7 +2,15 @@ use std::{error::Error, fmt, time::Duration};
 
 use dbus::{
     arg::{self, AppendAll, Get, ReadAll, RefArg},
-    blocking::{stdintf::org_freedesktop_dbus::Properties, Connection, Proxy},
+    blocking::{stdintf::org_freedesktop_dbus::Properties, Connection, MakeSignal, Proxy},
+    channel::{MatchingReceiver, Token},
+    message::SignalArgs,
+    Message,
+};
+
+use crate::status_notifier_item::{
+    OrgKdeStatusNotifierItemNewAttentionIcon, OrgKdeStatusNotifierItemNewIcon,
+    OrgKdeStatusNotifierItemNewStatus, OrgKdeStatusNotifierItemNewTitle,
 };
 
 const TIMEOUT: Duration = Duration::from_millis(50);
@@ -45,6 +53,11 @@ impl<'conn> StatusNotifierHost<'conn> {
         let items = self.registered_status_notifier_items()?;
         Ok(StatusNotifierItem::new(items[item].clone(), self.conn)?)
     }
+}
+
+pub trait SignalFunction<S: ReadAll + SignalArgs>:
+    Fn(S, &Connection, &Message) -> bool + Send
+{
 }
 
 #[derive(Clone)]
@@ -137,6 +150,61 @@ impl<'conn> StatusNotifierItem<'conn> {
     pub fn context_menu(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
         self.call("ContextMenu", (x, y))?;
         Ok(())
+    }
+
+    pub fn activate(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
+        self.call("Activate", (x, y))?;
+        Ok(())
+    }
+
+    pub fn secondary_activate(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
+        self.call("SecondaryActivate", (x, y))?;
+        Ok(())
+    }
+
+    pub fn scroll(&self, delta: i64, orientation: &str) -> Result<(), Box<dyn Error>> {
+        self.call("Scroll", (delta, orientation))?;
+        Ok(())
+    }
+
+    pub fn signal<S: ReadAll + SignalArgs, F: 'static + SignalFunction<S>>(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        Ok(self.item.match_signal(f)?)
+    }
+
+    pub fn new_title<F: 'static + SignalFunction<OrgKdeStatusNotifierItemNewTitle>>(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        self.signal(f)
+    }
+
+    pub fn new_icon<F: 'static + SignalFunction<OrgKdeStatusNotifierItemNewIcon>>(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        self.signal(f)
+    }
+
+    pub fn new_attention_icon<
+        F: 'static + SignalFunction<OrgKdeStatusNotifierItemNewAttentionIcon>,
+    >(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        self.signal(f)
+    }
+
+    // UNIMPLEMENTED: NewOverlayIcon
+    // UNIMPLEMENTED: NewToolTip
+
+    pub fn new_status<F: 'static + SignalFunction<OrgKdeStatusNotifierItemNewStatus>>(
+        &self,
+        f: F,
+    ) -> Result<Token, Box<dyn Error>> {
+        self.signal(f)
     }
 }
 
