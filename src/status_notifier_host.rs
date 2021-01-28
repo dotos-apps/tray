@@ -46,7 +46,7 @@ impl<'conn> StatusNotifierHost<'conn> {
         Ok(version)
     }
 
-    pub fn registered_status_notifier_items(&self) -> Result<Vec<String>, Box<dyn Error>> {
+    pub fn get_registered_status_notifier_items(&self) -> Result<Vec<String>, Box<dyn Error>> {
         let items: Vec<String> = self.watcher.get(
             "org.kde.StatusNotifierWatcher",
             "RegisteredStatusNotifierItems",
@@ -56,7 +56,7 @@ impl<'conn> StatusNotifierHost<'conn> {
     }
 
     pub fn get_item(&self, item: usize) -> Result<StatusNotifierItem, Box<dyn Error>> {
-        let items = self.registered_status_notifier_items()?;
+        let items = self.get_registered_status_notifier_items()?;
         Ok(StatusNotifierItem::new(items[item].clone(), self.conn)?)
     }
 
@@ -145,6 +145,10 @@ impl<'conn> StatusNotifierItem<'conn> {
         self.get("WindowId")
     }
 
+    pub fn get_icon_theme_path(&self) -> Result<String, Box<dyn Error>> {
+        self.get("IconThemePath")
+    }
+
     pub fn get_icon_name(&self) -> Result<String, Box<dyn Error>> {
         self.get("IconName")
     }
@@ -187,22 +191,22 @@ impl<'conn> StatusNotifierItem<'conn> {
             .method_call("org.kde.StatusNotifierItem", method_name, args)?)
     }
 
-    pub fn context_menu(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
+    pub fn context_menu(&self, x: i32, y: i32) -> Result<(), Box<dyn Error>> {
         self.call("ContextMenu", (x, y))?;
         Ok(())
     }
 
-    pub fn activate(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
+    pub fn activate(&self, x: i32, y: i32) -> Result<(), Box<dyn Error>> {
         self.call("Activate", (x, y))?;
         Ok(())
     }
 
-    pub fn secondary_activate(&self, x: i64, y: i64) -> Result<(), Box<dyn Error>> {
+    pub fn secondary_activate(&self, x: i32, y: i32) -> Result<(), Box<dyn Error>> {
         self.call("SecondaryActivate", (x, y))?;
         Ok(())
     }
 
-    pub fn scroll(&self, delta: i64, orientation: &str) -> Result<(), Box<dyn Error>> {
+    pub fn scroll(&self, delta: i32, orientation: &str) -> Result<(), Box<dyn Error>> {
         self.call("Scroll", (delta, orientation))?;
         Ok(())
     }

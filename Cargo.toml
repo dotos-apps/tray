@@ -1,5 +1,5 @@
 [package]
-name = "app-template"
+name = "tray"
 version = "0.1.0"
 authors = ["Dot HQ <contact@dothq.co>"]
 edition = "2018"
